@@ -1,0 +1,28 @@
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: packages/opencode/Dockerfile
+    image: opencode-dev:latest
+    container_name: opencode-instance
+    networks:
+      - defaults-default
+    volumes:
+      - .:/workspaces/opencode
+      - ../d-OSPv2:/workspaces/d-OSPv2
+      - ../d-OSPv2/opencode.json:/root/.config/opencode/opencode.json
+    working_dir: /workspaces/opencode
+    environment:
+      - BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
+      - TERM=xterm-256color
+      - COLUMNS=120
+      - LINES=40
+    tty: true
+    stdin_open: true
+    # Run interactive shell by default so you can type 'opencode'
+    command: /bin/bash
+
+networks:
+  defaults-default:
+    driver: bridge
+

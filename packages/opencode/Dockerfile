@@ -1,18 +1,29 @@
-FROM alpine AS base
+# Use Debian-based Bun for 100% TUI compatibility
+FROM oven/bun:1.1 AS runtime
 
-# Disable the runtime transpiler cache by default inside Docker containers.
-# On ephemeral containers, the cache is not useful
-ARG BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
-ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=${BUN_RUNTIME_TRANSPILER_CACHE_PATH}
-RUN apk add libgcc libstdc++ ripgrep
+# Install dependencies (coreutils includes stty)
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    ripgrep \
+    coreutils \
+    ncurses-bin \
+    && rm -rf /var/lib/apt/lists/*
 
-FROM base AS build-amd64
-COPY dist/opencode-linux-x64-baseline-musl/bin/opencode /usr/local/bin/opencode
+RUN mkdir -p /root/.config/opencode
 
-FROM base AS build-arm64
-COPY dist/opencode-linux-arm64-musl/bin/opencode /usr/local/bin/opencode
+WORKDIR /workspaces/opencode
 
-ARG TARGETARCH
-FROM build-${TARGETARCH}
-RUN opencode --version
-ENTRYPOINT ["opencode"]
+# Terminal settings for TUI
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+
+# Create the executable wrapper
+RUN printf '#!/bin/sh\nexec bun run /workspaces/opencode/packages/opencode/src/index.ts "$@"' > /usr/local/bin/opencode && \
+    chmod 755 /usr/local/bin/opencode
+
+COPY packages/opencode/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["/bin/bash"]
